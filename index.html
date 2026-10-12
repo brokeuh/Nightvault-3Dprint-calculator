@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0d8a7f">
+<meta name="description" content="Cost and price calculator for 3D prints, with Belgian bijberoep and VAT checks.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font-size:14px}[hidden]{display:none!important}</style>
+<title>Nightvault Print Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: workbench — inputs left as a "slicer settings" panel, live cost receipt right; yearly check strip below. */
+:root{
+  --bg:#f3f5f6; --panel:#ffffff; --fg:#1b2428; --muted:#5d6b71; --line:#d9e0e3;
+  --accent:#0d8a7f; --accent-soft:#d8efec; --warn:#b26a00; --bad:#b3261e; --good:#2e7d32;
+  --display:"Archivo",system-ui,sans-serif; --body:"Archivo",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12181b; --panel:#1a2226; --fg:#e4eaec; --muted:#93a3a9; --line:#2c373c;
+  --accent:#3cc2b5; --accent-soft:#173a37; --warn:#e3a33b; --bad:#ef6b62; --good:#6cc070; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12181b; --panel:#1a2226; --fg:#e4eaec; --muted:#93a3a9; --line:#2c373c;
+  --accent:#3cc2b5; --accent-soft:#173a37; --warn:#e3a33b; --bad:#ef6b62; --good:#6cc070; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.5}
+.wrap{max-width:1040px;margin:0 auto;padding-inline:16px;padding-block:28px 48px;display:grid;gap:24px}
+header h1{font-family:var(--display);font-weight:800;font-size:1.9rem;margin:0;letter-spacing:-.01em;text-wrap:balance}
+header p{margin:.3rem 0 0;color:var(--muted);max-width:62ch}
+.grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:24px;align-items:start}
+@media (max-width:760px){.grid{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px;min-width:0}
+fieldset{border:0;margin:0;padding:0;display:grid;gap:12px}
+fieldset+fieldset{margin-top:20px;padding-top:18px;border-top:1px solid var(--line)}
+legend{font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);padding:0;margin-bottom:10px}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px}
+label{display:grid;gap:4px;font-size:.84rem;color:var(--muted)}
+input,select{font-family:var(--mono);font-size:.95rem;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px;width:100%;box-sizing:border-box}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.receipt{position:sticky;top:calc(env(safe-area-inset-top,0px) + 16px)}
+.receipt h2{font-family:var(--display);font-size:1.05rem;margin:0 0 12px}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+td{padding:6px 0;border-bottom:1px dashed var(--line)}
+td:last-child{text-align:right;font-family:var(--mono)}
+tr.total td{border-bottom:0;border-top:1px solid var(--fg);font-weight:600;padding-top:10px}
+.price{margin-top:18px;padding:16px;border-radius:8px;background:var(--accent-soft);display:grid;gap:4px}
+.price .lbl{font-size:.72rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted)}
+.price .big{font-family:var(--mono);font-size:2.2rem;font-weight:500;color:var(--accent);line-height:1.1}
+.price small{color:var(--muted)}
+.check{margin-top:14px;font-size:.88rem;color:var(--muted)}
+.check b{font-family:var(--mono);color:var(--fg);font-weight:500}
+.year h2{font-family:var(--display);font-size:1.15rem;margin:0 0 4px}
+.year > p{margin:0 0 16px;color:var(--muted);font-size:.9rem}
+.bars{display:grid;gap:14px;margin-top:18px}
+.bar .top{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:.88rem}
+.bar .top span:last-child{font-family:var(--mono)}
+.track{height:10px;background:var(--bg);border:1px solid var(--line);border-radius:5px;overflow:hidden;margin-top:6px}
+.fill{height:100%;background:var(--good);width:0;transition:width .3s}
+.fill.warn{background:var(--warn)} .fill.bad{background:var(--bad)}
+.pill{display:inline-block;font-size:.75rem;font-weight:600;padding:2px 8px;border-radius:99px;border:1px solid currentColor}
+.pill.good{color:var(--good)} .pill.warn{color:var(--warn)} .pill.bad{color:var(--bad)}
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:18px}
+.summary div{border-top:2px solid var(--line);padding-top:8px}
+.summary .k{font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.summary .v{font-family:var(--mono);font-size:1.25rem}
+.note{font-size:.8rem;color:var(--muted);max-width:75ch}
+button{font-family:var(--body);font-size:.85rem;background:transparent;color:var(--accent);border:1px solid var(--accent);border-radius:6px;padding:6px 12px;cursor:pointer}
+@media (prefers-reduced-motion:reduce){.fill{transition:none}}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Print Price Calculator</h1>
+    <p>For your Bambu Lab A1, A1 mini and Elegoo Saturn 16K: what one print really costs you, what to charge for it, and whether your year stays under the Belgian bijberoep and VAT limits. Example values are a personalised PLA keychain; replace them with your own.</p>
+  </header>
+
+  <div class="grid">
+    <form class="panel" id="f" autocomplete="off">
+      <fieldset>
+        <legend>Product</legend>
+        <div class="row">
+          <label>Product name<input id="name" type="text" value="Name keychain (example)"></label>
+        </div>
+        <div class="row">
+          <label>Printer
+            <select id="printer">
+              <option value="a1">Bambu Lab A1 (filament)</option>
+              <option value="mini">Bambu Lab A1 mini (filament)</option>
+              <option value="saturn">Elegoo Saturn 16K (resin)</option>
+            </select>
+          </label>
+          <label>Failed-print margin (%)<input id="fail" type="number" step="1" min="0" value="10"></label>
+        </div>
+        <div class="row" id="filRow">
+          <label>Filament used (g)<input id="grams" type="number" step="1" min="0" value="15"></label>
+          <label>Filament price (€/kg)<input id="fkg" type="number" step="0.5" min="0" value="20"></label>
+        </div>
+        <div class="row" id="resRow" hidden>
+          <label>Resin used (ml)<input id="ml" type="number" step="1" min="0" value="20"></label>
+          <label>Resin price (€/litre)<input id="rl" type="number" step="1" min="0" value="35"></label>
+          <label>IPA, gloves, paper (€/print)<input id="cons" type="number" step="0.05" min="0" value="0.40"></label>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>Printer running cost</legend>
+        <div class="row">
+          <label>Print time (h)<input id="hours" type="number" step="0.1" min="0" value="0.7"></label>
+          <label>Average power (W)<input id="watt" type="number" step="10" min="0" value="120"></label>
+          <label>Electricity (€/kWh)<input id="kwh" type="number" step="0.01" min="0" value="0.35"></label>
+          <label>Wear & parts (€/print-h)<input id="wear" type="number" step="0.05" min="0" value="0.20"></label>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>Your work</legend>
+        <div class="row">
+          <label>Hands-on time (min)<input id="mins" type="number" step="1" min="0" value="10"></label>
+          <label>Your hourly rate (€/h)<input id="rate" type="number" step="1" min="0" value="15"></label>
+          <label>Packaging + GPSR insert (€)<input id="pack" type="number" step="0.05" min="0" value="0.30"></label>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>Selling</legend>
+        <div class="row">
+          <label>Channel
+            <select id="chan">
+              <option value="etsy">Etsy (approx. fees)</option>
+              <option value="market">Market stand (card reader)</option>
+              <option value="direct">Direct / cash</option>
+              <option value="custom">Custom fees</option>
+            </select>
+          </label>
+          <label>Fee (% of price)<input id="feep" type="number" step="0.1" min="0" value="10"></label>
+          <label>Fee per sale (€)<input id="feef" type="number" step="0.05" min="0" value="0.30"></label>
+        </div>
+        <div class="row">
+          <label>Pricing goal
+            <select id="mode">
+              <option value="profit">Profit margin on top</option>
+              <option value="even">Break-even (non-profit mode)</option>
+            </select>
+          </label>
+          <label>Profit margin (%)<input id="margin" type="number" step="5" min="0" value="30"></label>
+          <label>Round to
+            <select id="round">
+              <option value="0.5">€0.50</option>
+              <option value="1">€1</option>
+              <option value="0.01">No rounding</option>
+            </select>
+          </label>
+        </div>
+      </fieldset>
+    </form>
+
+    <aside class="panel receipt" aria-live="polite">
+      <h2 id="rname">Name keychain (example)</h2>
+      <table>
+        <tbody>
+          <tr><td id="lFil">Filament (incl. failures)</td><td id="cFil"></td></tr>
+          <tr><td>Electricity</td><td id="cEl"></td></tr>
+          <tr><td>Printer wear</td><td id="cWear"></td></tr>
+          <tr><td>Packaging</td><td id="cPack"></td></tr>
+          <tr><td>Your time</td><td id="cTime"></td></tr>
+          <tr><td>Fees at this price</td><td id="cFee"></td></tr>
+          <tr class="total"><td>Total cost</td><td id="cTot"></td></tr>
+        </tbody>
+      </table>
+      <div class="price">
+        <span class="lbl">Suggested price</span>
+        <span class="big" id="price"></span>
+        <small id="pnote"></small>
+      </div>
+      <p class="check">Profit per sale after fees and materials: <b id="pps"></b><br>
+      Of which pays your time: <b id="ppt"></b></p>
+    </aside>
+  </div>
+
+  <section class="panel year">
+    <h2>Your year at a glance</h2>
+    <p>Estimate yearly sales across all products. Net profit = turnover minus materials, fees, packaging and yearly costs (your time is not a cost for tax; it is what profit pays you).</p>
+    <div class="row">
+      <label>Sales per month<input id="spm" type="number" step="1" min="0" value="20"></label>
+      <label>Average price (€)<input id="avg" type="number" step="0.5" min="0" value="12"></label>
+      <label>Material + fee share (%)<input id="share" type="number" step="1" min="0" max="100" value="30"></label>
+      <label>Yearly fixed costs (€)<input id="fixed" type="number" step="10" min="0" value="900"></label>
+      <label>Your tax rate (%)<input id="tax" type="number" step="1" min="0" max="60" value="40"></label>
+    </div>
+    <div class="summary">
+      <div><div class="k">Turnover</div><div class="v" id="yTurn"></div></div>
+      <div><div class="k">Net profit</div><div class="v" id="yProf"></div></div>
+      <div><div class="k">Social contrib.</div><div class="v" id="ySoc"></div></div>
+      <div><div class="k">Income tax</div><div class="v" id="yTax"></div></div>
+      <div><div class="k">Left for you</div><div class="v" id="yLeft"></div></div>
+    </div>
+    <div class="bars">
+      <div class="bar">
+        <div class="top"><span>Net profit vs €1,922.16 (no social contributions below) <span class="pill" id="pSoc"></span></span><span id="tSoc"></span></div>
+        <div class="track"><div class="fill" id="bSoc"></div></div>
+      </div>
+      <div class="bar">
+        <div class="top"><span>Turnover vs €25,000 (VAT exemption limit) <span class="pill" id="pVat"></span></span><span id="tVat"></span></div>
+        <div class="track"><div class="fill" id="bVat"></div></div>
+      </div>
+    </div>
+    <p class="note">2026 thresholds for a zelfstandige in bijberoep. Social contributions are estimated at 20.5% of net profit above the threshold, minimum €98.51 per quarter; they reduce taxable profit. Platform fees are approximations, check current rates. Estimates only, not tax advice.</p>
+    <button type="button" id="reset">Reset example values</button>
+  </section>
+</div>
+
+<script>
+(function(){
+  const $=id=>document.getElementById(id);
+  const ids=['name','printer','ml','rl','cons','grams','fkg','fail','hours','watt','kwh','wear','mins','rate','pack','chan','feep','feef','mode','margin','round','spm','avg','share','fixed','tax'];
+  const defaults={};ids.forEach(i=>defaults[i]=$(i).value);
+  const eur=v=>'€'+(Math.round(v*100)/100).toLocaleString('nl-BE',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const eur0=v=>'€'+Math.round(v).toLocaleString('nl-BE');
+  const n=id=>Math.max(0,parseFloat($(id).value)||0);
+  const presets={etsy:[10,0.30],market:[1.75,0],direct:[0,0]};
+  const KEY='printcalc-v1';
+  try{const s=JSON.parse(localStorage.getItem(KEY)||'null');if(s)ids.forEach(i=>{if(s[i]!==undefined)$(i).value=s[i]});}catch(e){}
+
+  // Approximate average draw while printing; measure with a smart plug and overwrite.
+  const printers={a1:{w:120,wear:0.20},mini:{w:80,wear:0.15},saturn:{w:60,wear:0.30}};
+  const isResin=()=>$('printer').value==='saturn';
+  function syncMaterial(){
+    const r=isResin();
+    $('filRow').hidden=r; $('resRow').hidden=!r;
+    $('lFil').textContent=r?'Resin + IPA (incl. failures)':'Filament (incl. failures)';
+  }
+  function calc(){
+    syncMaterial();
+    const fil=isResin()
+      ? (n('ml')/1000*n('rl')+n('cons'))*(1+n('fail')/100)
+      : n('grams')/1000*n('fkg')*(1+n('fail')/100);
+    const el=n('hours')*n('watt')/1000*n('kwh');
+    const wear=n('hours')*n('wear');
+    const pack=n('pack');
+    const time=n('mins')/60*n('rate');
+    const fp=n('feep')/100, ff=n('feef');
+    const base=fil+el+wear+pack+time;
+    const target=$('mode').value==='even'?base:base*(1+n('margin')/100);
+    let price=fp<1?(target+ff)/(1-fp):0;
+    const r=parseFloat($('round').value);
+    price=Math.ceil(price/r-1e-9)*r;
+    const fee=price*fp+ff;
+    const tot=base+fee;
+    $('rname').textContent=$('name').value||'Your product';
+    $('cFil').textContent=eur(fil);$('cEl').textContent=eur(el);$('cWear').textContent=eur(wear);
+    $('cPack').textContent=eur(pack);$('cTime').textContent=eur(time);$('cFee').textContent=eur(fee);$('cTot').textContent=eur(tot);
+    $('price').textContent=eur(price);
+    $('pnote').textContent=$('mode').value==='even'?'Covers materials, fees and your time, nothing more.':`Cost plus ${n('margin')}% margin, rounded up.`;
+    $('pps').textContent=eur(price-fil-el-wear-pack-fee);
+    $('ppt').textContent=eur(time)+' (+ '+eur(price-tot)+' extra)';
+
+    const turn=n('spm')*12*n('avg');
+    const prof=turn*(1-n('share')/100)-n('fixed');
+    const TH=1922.16;
+    let soc=0; if(prof>TH){soc=Math.max(prof*0.205,98.51*4);}
+    const tax=Math.max(0,prof-soc)*n('tax')/100;
+    $('yTurn').textContent=eur0(turn);$('yProf').textContent=eur0(prof);$('ySoc').textContent=eur0(soc);
+    $('yTax').textContent=eur0(tax);$('yLeft').textContent=eur0(prof-soc-tax);
+    setBar('Soc',Math.max(prof,0),TH,'Under','Over');
+    setBar('Vat',turn,25000,'Exempt','Over limit');
+    try{const s={};ids.forEach(i=>s[i]=$(i).value);localStorage.setItem(KEY,JSON.stringify(s));}catch(e){}
+  }
+  function setBar(k,v,lim,okTxt,badTxt){
+    const pct=v/lim; const b=$('b'+k), p=$('p'+k);
+    b.style.width=Math.min(pct,1)*100+'%';
+    const cls=pct>1?'bad':pct>0.8?'warn':'good';
+    b.className='fill '+(cls==='good'?'':cls);
+    p.className='pill '+cls; p.textContent=pct>1?badTxt:pct>0.8?'Close':okTxt;
+    $('t'+k).textContent=Math.round(pct*100)+'%';
+  }
+  $('printer').addEventListener('change',()=>{const p=printers[$('printer').value];$('watt').value=p.w;$('wear').value=p.wear.toFixed(2);calc();});
+  $('chan').addEventListener('change',()=>{const p=presets[$('chan').value];if(p){$('feep').value=p[0];$('feef').value=p[1];}calc();});
+  $('margin').closest('label').hidden=false;
+  $('mode').addEventListener('change',()=>{$('margin').closest('label').hidden=$('mode').value==='even';calc();});
+  document.addEventListener('input',calc);
+  $('reset').addEventListener('click',()=>{ids.forEach(i=>$(i).value=defaults[i]);$('margin').closest('label').hidden=false;calc();});
+  $('margin').closest('label').hidden=$('mode').value==='even';
+  calc();
+})();
+</script>
+
+<script>
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));}
+</script>
+</body>
+</html>
